@@ -13,7 +13,7 @@ The model is illustrative and educational — it is **not** a diagnostic or clin
 
 ## Live demo
 
-Try the interactive app here: **[link once deployed on Streamlit Cloud]**
+Try the interactive app here: **[https://r-loop-trbdq6p6oblpeqlhovwuri.streamlit.app/]**
 
 ## Running locally
 

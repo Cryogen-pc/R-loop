@@ -29,10 +29,10 @@ k_therm = st.sidebar.slider(
     "Thermodynamic-adjusted steepness (k_therm)", min_value=0.05, max_value=1.0, value=0.50, step=0.01
 )
 threshold = st.sidebar.slider(
-    "Pathogenicity threshold (repeats)", min_value=10, max_value=60, value=30, step=1
+    "Pathogenicity threshold (repeats)", min_value=20, max_value=35, value=30, step=1
 )
 max_n = st.sidebar.slider(
-    "Max repeat length shown (n)", min_value=50, max_value=300, value=100, step=10
+    "Max repeat length shown (n)", min_value=50, max_value=100, value=100, step=10
 )
 
 st.sidebar.markdown("---")

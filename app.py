@@ -171,6 +171,37 @@ if k2 is not None:
         f"(k = {k2:.2f}) is {p2_now:.3f}. The 10% to 90% width changes from {width:.1f} to {width2:.1f} repeats."
     )
 
+st.markdown("### What the two curves represent")
+st.markdown("""
+R-Loop Nexus can show **one curve** or **two curves**.
+
+**Blue curve**  
+This is the first steepness value (**k**). In the study, **k = 0.20** is the baseline example.
+It means: “If the rise around 30 repeats is only moderate, this is how the model looks.”
+
+**Red curve**  
+This is the second steepness value (**k2**). In the study, **k = 0.50** is the
+**thermodynamically inspired** example.
+It means: “If GGGGCC RNA and DNA stick together more strongly, the model rises more sharply.”
+
+**Why show two?**  
+Not because there are two different genes. There is only one formula.
+The two lines are the **same model** with two assumed steepness settings.
+Comparing them answers: *Does a larger k make the jump around 30 repeats happen in a shorter span?*
+Yes. That is a property of the logistic curve.
+
+**What “thermodynamically inspired” means**  
+G and C letters in DNA/RNA form stronger pairs than A and T.
+GGGGCC is full of G and C, so an R-loop there can be more stable.
+The study does **not** calculate k from laboratory binding energy.
+It only uses a **higher k** as a simple stand-in for that extra sticking strength.
+
+So:
+- k = 0.20 → gentler teaching baseline  
+- k = 0.50 → steeper “what if it sticks more strongly?” case  
+- Both still equal 0.50 at 30 repeats, because 30 is the center of the model
+""")
+
 st.markdown("### Why R-Loop Nexus is useful")
 u1, u2, u3 = st.columns(3)
 with u1:
@@ -183,9 +214,10 @@ with u3:
     st.markdown("**Everyone else**")
     st.write("Explore the graph. Do not use it as a medical test.")
 
-tab1, tab2, tab3, tab4 = st.tabs(
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "Simple terms",
+        "Two curves explained",
         "P(n) for selected k",
         "Table 2 — k-sweep",
         "Table 3 — transition width",
@@ -215,6 +247,37 @@ It cannot diagnose ALS or FTD, read a person's DNA, or replace genetic testing.
     """)
 
 with tab2:
+    st.markdown("""
+**Are these two different models?**  
+No. Both lines use the same formula:
+
+P(n) = 1 / (1 + e^(-k(n - 30)))
+
+Only **k** changes.
+
+**Blue / first k**  
+Usually 0.20. This is the baseline curve from Table 1.
+It rises more slowly around 30 repeats.
+
+**Red / second k**  
+Usually 0.50. This is the thermodynamically inspired curve.
+It rises more quickly around 30 repeats.
+
+**Why differentiate them?**  
+To show the effect of steepness by itself. Because both curves pass through
+0.50 at 30 repeats, any difference you see is from k, not from moving the center.
+
+**What you should notice**
+- Before 30: the red line often stays lower longer
+- After 30: the red line often climbs faster
+- The red 10%-to-90% width is narrower
+
+That matches the study idea: if GC-rich RNA-DNA binding is more stable,
+the modeled transition can look sharper. This is an assumption for teaching,
+not a measured energy value from a lab.
+    """)
+
+with tab3:
     selected_ks = [k] if k2 is None else [k, k2]
     table_selected = probability_table(selected_ks, n_sample, threshold)
     st.write("Model outputs at every 10 repeats for the k value(s) you selected.")
@@ -226,7 +289,7 @@ with tab2:
         "text/csv",
     )
 
-with tab3:
+with tab4:
     st.write("Predicted P(n) at 10-repeat intervals for k = 0.10 to 0.90. Every column is 0.500 at the center.")
     table_sweep = probability_table(K_SWEEP, n_sample, threshold)
     st.dataframe(table_sweep, use_container_width=True, hide_index=True)
@@ -237,7 +300,7 @@ with tab3:
         "text/csv",
     )
 
-with tab4:
+with tab5:
     widths = np.round(transition_width(K_SWEEP), 2)
     width_row = {"k": "Transition width (n at P=0.90 minus n at P=0.10)"}
     for k_i, w in zip(K_SWEEP, widths):

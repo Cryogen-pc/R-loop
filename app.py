@@ -19,6 +19,12 @@ def transition_width(k, p_low=0.10, p_high=0.90):
     return (np.log(p_high / (1.0 - p_high)) - np.log(p_low / (1.0 - p_low))) / k
 
 
+def max_slope(k):
+    """Maximum slope of the logistic curve, which occurs at n = n0: dP/dn|max = k/4."""
+    k = np.asarray(k, dtype=float)
+    return k / 4.0
+
+
 def probability_table(k_values, n_points, threshold):
     data = {"Repeat Length (n)": n_points}
     for kval in k_values:
@@ -149,8 +155,13 @@ with col2:
     st.metric("Repeat length", f"{n_inspect}")
     st.metric("Model output", f"{p_now:.3f}")
     st.metric("10% to 90% width", f"{width:.1f} repeats")
+    st.metric("Maximum slope (k/4)", f"{max_slope(k):.3f}")
     st.write(zone)
     st.write(zone_meaning)
+    st.caption(
+        "Maximum slope is always k/4, and it always occurs exactly at the center. "
+        "This comes directly from the formula, not from a separate measurement."
+    )
 
 st.info(f"""
 **R-Loop Nexus settings right now**
@@ -214,13 +225,16 @@ with u3:
     st.markdown("**Everyone else**")
     st.write("Explore the graph. Do not use it as a medical test.")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
     [
         "Simple terms",
         "Two curves explained",
         "P(n) for selected k",
         "Table 2 — k-sweep",
         "Table 3 — transition width",
+        "Anchor check",
+        "Slope & width, derived",
+        "Heatmap",
     ]
 )
 
@@ -313,6 +327,105 @@ with tab5:
         table_width.to_csv(index=False).encode("utf-8"),
         "rloop_nexus_transition_width.csv",
         "text/csv",
+    )
+
+with tab6:
+    st.write(
+        "This checks whether the center of the curve (the anchor) changes the curve's "
+        "shape, or only its position. The anchor is checked at 20, 25, 30, and 35 "
+        "repeats — the range discussed in the cited literature — not as a free search "
+        "for any arbitrary cutoff."
+    )
+    anchor_k = st.slider(
+        "Steepness (k) used for this check", 0.10, 0.90, 0.20, 0.01, key="anchor_k"
+    )
+    anchor_values = [20, 25, 30, 35]
+    fig_a, ax_a = plt.subplots(figsize=(8, 5))
+    colors = ["#4C72B0", "#55A868", "#C44E52", "#8172B2"]
+    for a0, c in zip(anchor_values, colors):
+        P_a = r_loop_probability(n_fine, anchor_k, a0)
+        ax_a.plot(n_fine, P_a, label=f"n0 = {a0}", color=c, linewidth=2)
+        ax_a.scatter([a0], [0.5], color=c, zorder=5)
+    ax_a.set_xlabel("GGGGCC repeat length (n)")
+    ax_a.set_ylabel("Model output (0 to 1)")
+    ax_a.set_ylim(-0.02, 1.02)
+    ax_a.set_title(f"Anchor check at k = {anchor_k:.2f}")
+    ax_a.legend(loc="lower right")
+    ax_a.grid(alpha=0.28)
+    st.pyplot(fig_a)
+
+    w_check = float(transition_width(anchor_k))
+    st.success(
+        f"At k = {anchor_k:.2f}, the 10%-to-90% width is **{w_check:.2f} repeats** "
+        f"at every anchor position shown above (20, 25, 30, and 35). "
+        f"Moving the anchor slides the curve left or right. It does not change the width "
+        f"or the maximum slope, because neither quantity depends on n0 — only on k."
+    )
+
+with tab7:
+    st.markdown(r"""
+**Where the slope formula comes from**
+
+Differentiating the logistic function with respect to n gives:
+
+$$\frac{dP}{dn} = k \cdot P(n) \cdot [1 - P(n)]$$
+
+The term $P(1-P)$ is largest when $P = 0.5$, which happens exactly at the anchor.
+Substituting $P = 0.5$ gives the maximum slope:
+
+$$\left(\frac{dP}{dn}\right)_{max} = \frac{k}{4}$$
+
+This is why the maximum slope metric shown earlier always equals k divided by 4,
+and why it always occurs at the center of the curve, wherever that center is placed.
+
+**Where the transition-width formula comes from**
+
+The 10%-to-90% transition width has a closed form:
+
+$$W = \frac{2\ln(9)}{k} \approx \frac{4.394}{k}$$
+
+Notice that neither formula contains n0 (the anchor). Both the steepest point of the
+climb and how wide that climb is depend only on k. The anchor only decides *where*
+on the repeat-length axis that climb is centered.
+
+**Why this app does not report a p-value or a "significant" result**
+
+Both formulas above are exact mathematical identities, not something discovered by
+sampling data. A p-value would imply a random sample drawn from a population — but
+every number in this app is a deterministic output of one equation. Reporting
+significance here would be misleading, so this app reports the exact relationship
+instead.
+    """)
+
+with tab8:
+    st.write(
+        "This heatmap combines everything in Table 2 into one picture. It plots the "
+        "model output P(n, k) across every repeat length (n = 0 to 100) and every "
+        "steepness value (k = 0.10 to 0.90), with the anchor fixed at n0 = 30."
+    )
+
+    n_grid = np.linspace(0, 100, 200)
+    k_grid = np.linspace(0.10, 0.90, 200)
+    N, K = np.meshgrid(n_grid, k_grid)
+    P_grid = r_loop_probability(N, K, threshold=30)
+
+    fig_h, ax_h = plt.subplots(figsize=(8, 5.5))
+    mesh = ax_h.pcolormesh(N, K, P_grid, shading="auto", cmap="RdBu_r", vmin=0, vmax=1)
+    ax_h.axvline(30, color="black", linestyle="--", linewidth=1.2, label="Anchor (n0 = 30)")
+    cbar = fig_h.colorbar(mesh, ax=ax_h)
+    cbar.set_label("Model output P(n, k)")
+    ax_h.set_xlabel("GGGGCC repeat length (n)")
+    ax_h.set_ylabel("Steepness (k)")
+    ax_h.set_title("Heatmap of P(n, k) at n0 = 30")
+    ax_h.legend(loc="upper left")
+    st.pyplot(fig_h)
+
+    st.info(
+        "Reading this heatmap: at any fixed k (a horizontal line), color moves from "
+        "blue (low) to red (high) as n increases, with the sharpest color change at "
+        "n = 30. As k increases (moving up the chart), that color change happens in a "
+        "narrower band of repeat lengths — this is the same narrowing shown in Table 3, "
+        "just displayed as a picture instead of a list of numbers."
     )
 
 st.markdown("---")
